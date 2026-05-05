@@ -11,13 +11,16 @@ app.use(express.json());
 const PORT = process.env.CLIENT_PORT || 3001;
 
 // ========================
-// PROXY (NODEMAVEN - SOCKS5)
+// PROXY (NODEMAVEN)
 // ========================
-const PROXY_URL = "socks5://fabio_mostasso_gmail_com-country-any-ipv4-true-sid-478037efa2ac4-filter-medium:jry8tyh85e@gate.nodemaven.com:1080";
+const PROXY_URL = "socks5://USERNAME:PASSWORD@gate.nodemaven.com:PORT";
+
+// ⚠️ IMPORTANTE: usar agent global
 const agent = new SocksProxyAgent(PROXY_URL);
 
-// ========================
-// VARIÁVEIS
+// 🔥 FORÇA NODE A USAR PROXY
+global.Agent = agent;
+
 // ========================
 let sock = null;
 let currentQR = null;
@@ -29,9 +32,6 @@ const RECONNECT_DELAY = 5000;
 
 const logger = pino({ level: 'info' });
 
-// ========================
-// CONEXÃO WHATSAPP
-// ========================
 async function startWhatsApp() {
   try {
     const { state, saveCreds } = await useMultiFileAuthState('./auth');
@@ -41,6 +41,10 @@ async function startWhatsApp() {
       printQRInTerminal: false,
       logger: pino({ level: 'silent' }),
       browser: ['Ubuntu', 'Chrome', '20.0'],
+      connectTimeoutMs: 60000,
+      defaultQueryTimeoutMs: 60000,
+      keepAliveIntervalMs: 10000,
+      agent, // mantém também aqui
       fetchAgent: agent
     });
 
@@ -83,24 +87,18 @@ async function startWhatsApp() {
 }
 
 // ========================
-// ROTAS API
+// ROTAS
 // ========================
 
-// QR Code
 app.get('/qr', async (req, res) => {
   if (!currentQR) {
     return res.json({ status: 'aguardando QR' });
   }
 
-  try {
-    const qrImage = await QRCode.toDataURL(currentQR);
-    res.send(`<img src="${qrImage}" />`);
-  } catch (err) {
-    res.status(500).json({ error: 'Erro ao gerar QR' });
-  }
+  const qrImage = await QRCode.toDataURL(currentQR);
+  res.send(`<img src="${qrImage}" />`);
 });
 
-// Status
 app.get('/status', (req, res) => {
   res.json({
     connected: isConnected,
@@ -108,7 +106,6 @@ app.get('/status', (req, res) => {
   });
 });
 
-// Enviar mensagem
 app.post('/send', async (req, res) => {
   try {
     if (!isConnected) {
@@ -117,23 +114,16 @@ app.post('/send', async (req, res) => {
 
     const { to, message } = req.body;
 
-    if (!to || !message) {
-      return res.status(400).json({ error: 'Parâmetros inválidos' });
-    }
-
     const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
 
     await sock.sendMessage(jid, { text: message });
 
     res.json({ success: true });
   } catch (err) {
-    logger.error(`Erro ao enviar mensagem: ${err.message}`);
     res.status(500).json({ error: err.message });
   }
 });
 
-// ========================
-// START
 // ========================
 app.listen(PORT, () => {
   logger.info(`Client rodando na porta ${PORT}`);
