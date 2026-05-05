@@ -2,7 +2,7 @@ const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = requi
 const express = require('express');
 const pino = require('pino');
 const QRCode = require('qrcode');
-const { SocksProxyAgent } = require('socks-proxy-agent');
+const { HttpsProxyAgent } = require('https-proxy-agent');
 require('dotenv').config();
 
 const app = express();
@@ -11,16 +11,17 @@ app.use(express.json());
 const PORT = process.env.CLIENT_PORT || 3001;
 
 // ========================
-// PROXY (NODEMAVEN)
+// PROXY (NODEMAVEN - HTTP)
 // ========================
-const PROXY_URL = "socks5://fabio_mostasso_gmail_com-country-any-ipv4-true-sid-478037efa2ac4-filter-medium:jry8tyh85e@gate.nodemaven.com:1080";
+const username = encodeURIComponent("fabio_mostasso_gmail_com-country-any-ipv4-true-sid-478037efa2ac4-filter-medium");
+const password = encodeURIComponent("jry8tyh85e");
 
-// ⚠️ IMPORTANTE: usar agent global
-const agent = new SocksProxyAgent(PROXY_URL);
+const PROXY_URL = `http://${username}:${password}@gate.nodemaven.com:8080`;
 
-// 🔥 FORÇA NODE A USAR PROXY
-global.Agent = agent;
+const agent = new HttpsProxyAgent(PROXY_URL);
 
+// ========================
+// VARIÁVEIS
 // ========================
 let sock = null;
 let currentQR = null;
@@ -32,6 +33,9 @@ const RECONNECT_DELAY = 5000;
 
 const logger = pino({ level: 'info' });
 
+// ========================
+// CONEXÃO WHATSAPP
+// ========================
 async function startWhatsApp() {
   try {
     const { state, saveCreds } = await useMultiFileAuthState('./auth');
@@ -44,7 +48,6 @@ async function startWhatsApp() {
       connectTimeoutMs: 60000,
       defaultQueryTimeoutMs: 60000,
       keepAliveIntervalMs: 10000,
-      agent, // mantém também aqui
       fetchAgent: agent
     });
 
@@ -87,18 +90,24 @@ async function startWhatsApp() {
 }
 
 // ========================
-// ROTAS
+// ROTAS API
 // ========================
 
+// QR Code
 app.get('/qr', async (req, res) => {
   if (!currentQR) {
     return res.json({ status: 'aguardando QR' });
   }
 
-  const qrImage = await QRCode.toDataURL(currentQR);
-  res.send(`<img src="${qrImage}" />`);
+  try {
+    const qrImage = await QRCode.toDataURL(currentQR);
+    res.send(`<img src="${qrImage}" />`);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao gerar QR' });
+  }
 });
 
+// Status
 app.get('/status', (req, res) => {
   res.json({
     connected: isConnected,
@@ -106,6 +115,7 @@ app.get('/status', (req, res) => {
   });
 });
 
+// Enviar mensagem
 app.post('/send', async (req, res) => {
   try {
     if (!isConnected) {
@@ -114,16 +124,23 @@ app.post('/send', async (req, res) => {
 
     const { to, message } = req.body;
 
+    if (!to || !message) {
+      return res.status(400).json({ error: 'Parâmetros inválidos' });
+    }
+
     const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
 
     await sock.sendMessage(jid, { text: message });
 
     res.json({ success: true });
   } catch (err) {
+    logger.error(`Erro ao enviar mensagem: ${err.message}`);
     res.status(500).json({ error: err.message });
   }
 });
 
+// ========================
+// START
 // ========================
 app.listen(PORT, () => {
   logger.info(`Client rodando na porta ${PORT}`);
