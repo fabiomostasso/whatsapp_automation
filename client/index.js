@@ -13,7 +13,7 @@ const PORT = process.env.CLIENT_PORT || 3001;
 // ========================
 // PROXY (NODEMAVEN)
 // ========================
-const PROXY_URL = "socks5://USERNAME:PASSWORD@gate.nodemaven.com:PORT";
+const PROXY_URL = "socks5://fabio_mostasso_gmail_com-country-any-ipv4-true-sid-478037efa2ac4-filter-medium:jry8tyh85e@gate.nodemaven.com:1080";
 
 // ⚠️ IMPORTANTE: usar agent global
 const agent = new SocksProxyAgent(PROXY_URL);
