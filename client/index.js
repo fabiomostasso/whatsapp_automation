@@ -41,7 +41,7 @@ async function startWhatsApp() {
       printQRInTerminal: false,
       logger: pino({ level: 'silent' }),
       browser: ['Ubuntu', 'Chrome', '20.0'],
-      agent
+      fetchAgent: agent // 🔥 CORREÇÃO CRÍTICA AQUI
     });
 
     sock.ev.on('connection.update', async (update) => {
