@@ -1,1 +1,33 @@
 version: '3.8'
+
+services:
+  client:
+    build: ./client
+    container_name: whatsapp-client
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./client/auth:/app/auth
+    environment:
+      - CLIENT_PORT=3001
+    restart: unless-stopped
+    networks:
+      - whatsapp-network
+
+  server:
+    build: ./server
+    container_name: whatsapp-server
+    ports:
+      - "3000:3000"
+    environment:
+      - SERVER_PORT=3000
+      - CLIENT_URL=http://client:3001
+    depends_on:
+      - client
+    restart: unless-stopped
+    networks:
+      - whatsapp-network
+
+networks:
+  whatsapp-network:
+    driver: bridge
