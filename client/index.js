@@ -2,7 +2,7 @@ const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = requi
 const express = require('express');
 const pino = require('pino');
 const QRCode = require('qrcode');
-const { HttpsProxyAgent } = require('https-proxy-agent');
+const { SocksProxyAgent } = require('socks-proxy-agent');
 require('dotenv').config();
 
 const app = express();
@@ -11,10 +11,10 @@ app.use(express.json());
 const PORT = process.env.CLIENT_PORT || 3001;
 
 // ========================
-// PROXY (BRIGHT DATA)
+// PROXY (NODEMAVEN - SOCKS5)
 // ========================
-const PROXY_URL = "http://brd-customer-hl_0db074c1-zone-agromentor:48qvu6xibbdx@brd.superproxy.io:33335";
-const agent = new HttpsProxyAgent(PROXY_URL);
+const PROXY_URL = "socks5://fabio_mostasso_gmail_com-country-any-ipv4-true-sid-478037efa2ac4-filter-medium:jry8tyh85e@gate.nodemaven.com:1080";
+const agent = new SocksProxyAgent(PROXY_URL);
 
 // ========================
 // VARIÁVEIS
@@ -41,7 +41,7 @@ async function startWhatsApp() {
       printQRInTerminal: false,
       logger: pino({ level: 'silent' }),
       browser: ['Ubuntu', 'Chrome', '20.0'],
-      fetchAgent: agent // 🔥 CORREÇÃO CRÍTICA AQUI
+      fetchAgent: agent
     });
 
     sock.ev.on('connection.update', async (update) => {
